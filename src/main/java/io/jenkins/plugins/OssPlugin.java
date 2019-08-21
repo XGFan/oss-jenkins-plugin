@@ -2,24 +2,33 @@ package io.jenkins.plugins;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.OSSException;
+import com.aliyun.oss.model.ObjectMetadata;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.google.common.base.Objects;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Item;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.jenkinsci.Symbol;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.*;
 
 import java.io.IOException;
+import java.util.Collections;
 
 public class OssPlugin extends Recorder implements SimpleBuildStep {
 
@@ -30,13 +39,16 @@ public class OssPlugin extends Recorder implements SimpleBuildStep {
     public String bucket;
 
     @DataBoundSetter
-    public String include;
-
-    @DataBoundSetter
-    public String exclude;
-
-    @DataBoundSetter
     public String prefix;
+
+    @DataBoundSetter
+    public String patternType;
+
+    @DataBoundSetter
+    public String pattern;
+
+    @DataBoundSetter
+    public String credentialsId;
 
     @DataBoundConstructor
     public OssPlugin() {
@@ -44,34 +56,50 @@ public class OssPlugin extends Recorder implements SimpleBuildStep {
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
+        final StandardUsernamePasswordCredentials usernamePasswordCredentials = CredentialsProvider.findCredentialById(credentialsId, StandardUsernamePasswordCredentials.class, run);
+
         listener.getLogger().println("upload to " + endpoint + "/" + bucket);
-        listener.getLogger().println("include: " + Objects.firstNonNull(include, ""));
-        listener.getLogger().println("exclude: " + Objects.firstNonNull(exclude, ""));
-        final DescriptorImpl descriptor = (DescriptorImpl) this.getDescriptor();
-        final OSS ossClient = new OSSClientBuilder().build(endpoint, descriptor.aliyunAccessKey, descriptor.aliyunSecretKey);
-        final FilePath[] list = workspace.list(include, exclude);
+        listener.getLogger().println("patternType: " + Objects.firstNonNull(patternType, ""));
+        listener.getLogger().println("pattern: " + Objects.firstNonNull(pattern, ""));
+
+        final OSS ossClient = new OSSClientBuilder().build(endpoint,
+                usernamePasswordCredentials.getUsername(),
+                usernamePasswordCredentials.getPassword().getPlainText());
+
+        FilePath[] list;
+
+        if (patternType.equals("include")) {
+            if (pattern == null || pattern.trim().isEmpty()) {
+                pattern = "**";
+            }
+            list = workspace.list(pattern);
+        } else {
+            list = workspace.list("**", pattern);
+        }
+
         final String parent = workspace.toURI().getPath();
         for (FilePath filePath : list) {
-            final String key = filePath.toURI().getPath().replaceFirst(parent, "");
-            listener.getLogger().println("upload: " + key);
-            ossClient.putObject(bucket, Objects.firstNonNull(prefix, "") + key, filePath.read());
+            final String fileName = filePath.toURI().getPath().replaceFirst(parent, "");
+            final String ossKey = Objects.firstNonNull(prefix, "") + fileName;
+            String ossMd5;
+            try {
+                final ObjectMetadata objectMetadata = ossClient.getObjectMetadata(bucket, ossKey);
+                ossMd5 = objectMetadata.getETag();
+            } catch (OSSException e) {
+                ossMd5 = null;
+            }
+            if (ossMd5 == null || !DigestUtils.md5Hex(filePath.read()).toUpperCase().equals(ossMd5)) {
+                listener.getLogger().println("upload: " + fileName);
+                ossClient.putObject(bucket, ossKey, filePath.read());
+            } else {
+                listener.getLogger().println("skip: " + fileName);
+            }
         }
     }
 
     @Symbol("oss")
     @Extension
     public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
-
-        String aliyunAccessKey;
-        String aliyunSecretKey;
-
-        public String getAliyunAccessKey() {
-            return aliyunAccessKey;
-        }
-
-        public String getAliyunSecretKey() {
-            return aliyunSecretKey;
-        }
 
         public DescriptorImpl() {
             load();
@@ -83,12 +111,30 @@ public class OssPlugin extends Recorder implements SimpleBuildStep {
         }
 
         @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+        public boolean configure(StaplerRequest req, JSONObject formData) {
             req.bindParameters(this);
-            this.aliyunAccessKey = formData.getString("aliyunAccessKey");
-            this.aliyunSecretKey = formData.getString("aliyunSecretKey");
             save();
             return true;
+        }
+
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item item, @QueryParameter String credentialsId) {
+            StandardListBoxModel result = new StandardListBoxModel();
+            if (item == null) {
+                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                    return result.includeCurrentValue(credentialsId);
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ) && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return result.includeCurrentValue(credentialsId);
+                }
+            }
+            return result
+                    .includeMatchingAs(ACL.SYSTEM,
+                            Jenkins.get(),
+                            StandardUsernamePasswordCredentials.class,
+                            Collections.emptyList(),
+                            it -> true)
+                    .includeCurrentValue(credentialsId);
         }
 
         @Override

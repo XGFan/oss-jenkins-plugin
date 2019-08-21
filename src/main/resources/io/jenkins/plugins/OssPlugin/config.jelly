@@ -1,18 +1,24 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="endpoint" field="endpoint"s>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:c="/lib/credentials" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:entry title="OSS Endpoint" field="endpoint">
   		<f:textbox />
   	</f:entry>
-    <f:entry title="bucket" field="bucket">
+    <f:entry title="OSS Bucket name" field="bucket">
   		<f:textbox />
   	</f:entry>
-  	<f:entry title="prefix" field="bucket">
+  	<f:entry title="OSS Prefix" field="prefix">
       	<f:textbox />
     </f:entry>
-  	<f:entry title="include" field="include">
+    <f:entry name="patternType" title="Pattern Type" field="patternType">
+        <select name="patternType">
+            <option value="include">include</option>
+            <option value="exclude">exclude</option>
+        </select>
+    </f:entry>
+  	<f:entry title="File Pattern (Ant-Style)" field="pattern">
     	<f:textbox/>
   	</f:entry>
-  	<f:entry title="exclude" field="exclude">
-    	<f:textbox/>
+ 	<f:entry title="AccessToken/AccessKey (username/password)" field="credentialsId">
+ 	    <c:select expressionAllowed="false"/>
  	</f:entry>
 </j:jelly>
