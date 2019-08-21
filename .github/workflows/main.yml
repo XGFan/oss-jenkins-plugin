@@ -3,7 +3,7 @@ name: Java CI
 on: [push]
 
 jobs:
-  build_release:
+  Build_And_Release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -16,9 +16,11 @@ jobs:
       - name: Build with Maven
         run: mvn compile hpi:hpi
 
-      - name: create release
+      - name: Create Release
         uses: JasonEtco/upload-to-release@master
         with:
-          args: target/jenkins-oss.hpi
+          args:
+            - target/jenkins-oss.hpi
+            - application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,7 @@
 
 打包
 ```
-mvn hpi:hpi
+mvn compile hpi:hpi
 ```
 
 ### 使用方法
