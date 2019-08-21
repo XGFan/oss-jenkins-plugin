@@ -18,7 +18,7 @@
   	<f:entry title="File Pattern (Ant-Style)" field="pattern">
     	<f:textbox/>
   	</f:entry>
- 	<f:entry title="AccessToken/AccessKey (username/password)" field="credentialsId">
+ 	<f:entry title="AccessToken/SecretKey (username/password)" field="credentialsId">
  	    <c:select expressionAllowed="false"/>
  	</f:entry>
 </j:jelly>
