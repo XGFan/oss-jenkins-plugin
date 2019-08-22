@@ -9,14 +9,15 @@
         <relativePath/>
     </parent>
     <groupId>io.jenkins.plugins</groupId>
-    <artifactId>jenkins-oss</artifactId>
+    <artifactId>oss-uploader</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
-        <jenkins.version>2.164.1</jenkins.version>
+        <jenkins.version>2.121.3</jenkins.version>
         <java.level>8</java.level>
     </properties>
-    <name>jenkins-oss</name>
+    <name>Aliyun OSS Uploader</name>
+    <description>Upload files to aliyun oss</description>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -25,14 +26,15 @@
     </licenses>
     <dependencies>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>structs</artifactId>
-            <version>1.19</version>
-        </dependency>
-        <dependency>
             <groupId>com.aliyun.oss</groupId>
             <artifactId>aliyun-sdk-oss</artifactId>
             <version>3.5.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>structs</artifactId>
+            <version>1.19</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -44,6 +46,7 @@
             <artifactId>workflow-step-api</artifactId>
             <version>2.19</version>
         </dependency>
+
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-cps</artifactId>

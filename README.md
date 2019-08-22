@@ -1,4 +1,4 @@
-## OSS-Jenkins-Plugin
+## OSS Uploader for Jenkins
 
 ### 开发
 
