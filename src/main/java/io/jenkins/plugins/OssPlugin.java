@@ -28,7 +28,12 @@ import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.*;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class OssPlugin extends Recorder implements SimpleBuildStep {
 
@@ -58,9 +63,10 @@ public class OssPlugin extends Recorder implements SimpleBuildStep {
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
         final StandardUsernamePasswordCredentials usernamePasswordCredentials = CredentialsProvider.findCredentialById(credentialsId, StandardUsernamePasswordCredentials.class, run);
 
-        listener.getLogger().println("upload to " + endpoint + "/" + bucket);
-        listener.getLogger().println("patternType: " + Objects.firstNonNull(patternType, ""));
-        listener.getLogger().println("pattern: " + Objects.firstNonNull(pattern, ""));
+        final PrintStream logger = listener.getLogger();
+        logger.println("upload to " + endpoint + "/" + bucket);
+        logger.println("patternType: " + Objects.firstNonNull(patternType, ""));
+        logger.println("pattern: " + Objects.firstNonNull(pattern, ""));
 
         final OSS ossClient = new OSSClientBuilder().build(endpoint,
                 usernamePasswordCredentials.getUsername(),
@@ -76,24 +82,33 @@ public class OssPlugin extends Recorder implements SimpleBuildStep {
         } else {
             list = workspace.list("**", pattern);
         }
-
+        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2 + 1);
         final String parent = workspace.toURI().getPath();
-        for (FilePath filePath : list) {
-            final String fileName = filePath.toURI().getPath().replaceFirst(parent, "");
+        Arrays.stream(list).forEach(filePath -> executorService.submit(() -> uploadFile(logger, ossClient, parent, filePath)));
+        executorService.shutdown();
+        executorService.awaitTermination(30, TimeUnit.MINUTES);
+    }
+
+    private void uploadFile(PrintStream logger, OSS ossClient, String parent, FilePath filePath) {
+        String fileName = null;
+        try {
+            fileName = filePath.toURI().getPath().replaceFirst(parent, "");
             final String ossKey = Objects.firstNonNull(prefix, "") + fileName;
-            String ossMd5;
+            String ossMd5 = null;
             try {
                 final ObjectMetadata objectMetadata = ossClient.getObjectMetadata(bucket, ossKey);
                 ossMd5 = objectMetadata.getETag();
-            } catch (OSSException e) {
-                ossMd5 = null;
+            } catch (OSSException ignore) {
             }
             if (ossMd5 == null || !DigestUtils.md5Hex(filePath.read()).toUpperCase().equals(ossMd5)) {
-                listener.getLogger().println("upload: " + fileName);
                 ossClient.putObject(bucket, ossKey, filePath.read());
+                logger.println("upload: " + fileName);
             } else {
-                listener.getLogger().println("skip: " + fileName);
+                logger.println("skip: " + fileName);
             }
+        } catch (Exception e) {
+            logger.println("fail: " + fileName);
+            logger.println(e.getMessage());
         }
     }
 

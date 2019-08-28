@@ -7,16 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+        if: github.event_name == 'release' && github.event.action == 'published'
 
       - name: Set up JDK 1.8
+        if: github.event_name == 'release' && github.event.action == 'published'
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
       - name: Build with Maven
+        if: github.event_name == 'release' && github.event.action == 'published'
         run: mvn compile hpi:hpi
 
       - name: Create Release
+        if: github.event_name == 'release' && github.event.action == 'published'
         uses: JasonEtco/upload-to-release@master
         with:
           args: target/oss-uploader.hpi application/octet-stream
