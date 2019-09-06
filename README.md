@@ -1,4 +1,4 @@
-## OSS Uploader for Jenkins
+## Aliyun OSS Uploader for Jenkins
 
 ### 开发
 
