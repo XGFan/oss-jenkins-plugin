@@ -20,7 +20,7 @@ mvn hpi:run
 
 ### 使用方法
 
-支持常规流程项目和Pipeline项目
+支持常规流程项目和Pipeline项目  
 支持单个或者多个文件上传
 
 ![Pipeline](doc/pipeline.png)
